@@ -67,7 +67,8 @@ func countLettersConcurrent(url string, frequency []int) {
 func main() {
 
 	// loadSequential()
-	loadConcurrently()
+	// loadConcurrently()
+	loadWithWaitGroups()
 }
 
 func loadSequential() {
@@ -116,5 +117,38 @@ func loadConcurrently() {
 	fmt.Printf("\n\nElapsed time: %.3f seconds\n\n", elapsed.Seconds())
 
 	time.Sleep(10 * time.Second)
+
+}
+
+func loadWithWaitGroups() {
+	wg := sync.WaitGroup{}
+	wg.Add(201)
+
+	start := time.Now()
+	mutex := sync.Mutex{}
+	var frequency = make([]int, 26)
+	for i := 1000; i <= 1200; i++ {
+		url := fmt.Sprintf("https://rfc-editor.org/rfc/rfc%d.txt", i)
+		// fmt.Println("Get url ", i)
+		go func() {
+			countLetters(url, frequency, &mutex)
+			wg.Done()
+
+		}()
+	}
+
+	wg.Wait()
+
+	mutex.Lock()
+	fmt.Println(frequency)
+	mutex.Unlock()
+
+	// mutex.Lock()
+	// for i, c := range allLetters {
+	// 	fmt.Printf("%c-%d ", c, frequency[i])
+	// }
+	// mutex.Unlock()
+	elapsed := time.Since(start)
+	fmt.Printf("\n\nElapsed time: %.3f seconds\n\n", elapsed.Seconds())
 
 }
