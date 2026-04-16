@@ -9,29 +9,28 @@ import (
 	"time"
 )
 
-func incr(no *int, m *sync.Mutex) {
-	tmp := 1000000
-	for tmp > 0 {
-		m.Lock()
-		*no++
-		m.Unlock()
-		tmp--
-	}
-}
-
-func decr(no *int, m *sync.Mutex) {
-	tmp := 1000000
-	for tmp > 0 {
-		m.Lock()
-		*no--
-		m.Unlock()
-		tmp--
-	}
-}
-
 const allLetters = "abcdefghijklmnopqrstuvwxyz"
 
-func countLetters(url string, frequency []int) {
+func countLetters(url string, frequency []int, mutex *sync.Mutex) {
+	resp, err := http.Get(url)
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	for _, b := range body {
+		c := strings.ToLower(string(b))
+		cIndex := strings.Index(allLetters, c)
+		if cIndex >= 0 {
+			mutex.Lock()
+			frequency[cIndex] += 1
+			mutex.Unlock()
+		}
+	}
+	fmt.Println("Completed:", url)
+}
+
+func countLettersSequental(url string, frequency []int) {
 	resp, err := http.Get(url)
 	if err != nil {
 		panic(err)
@@ -67,26 +66,17 @@ func countLettersConcurrent(url string, frequency []int) {
 
 func main() {
 
-	no := 100
-	m := sync.Mutex{}
-	go incr(&no, &m)
-	go decr(&no, &m)
-
-	time.Sleep(2 * time.Second)
-
-	m.Lock()
-	fmt.Println("NO IS ", no)
-	m.Unlock()
-	//loadSequential()
+	// loadSequential()
+	loadConcurrently()
 }
 
 func loadSequential() {
 	start := time.Now()
 	var frequency = make([]int, 26)
-	for i := 1000; i <= 1020; i++ {
+	for i := 1000; i <= 1220; i++ {
 		url := fmt.Sprintf("https://rfc-editor.org/rfc/rfc%d.txt", i)
 		fmt.Println("Get url ", i)
-		countLetters(url, frequency)
+		countLettersSequental(url, frequency)
 	}
 	for i, c := range allLetters {
 		fmt.Printf("%c-%d ", c, frequency[i])
@@ -97,16 +87,34 @@ func loadSequential() {
 }
 func loadConcurrently() {
 	start := time.Now()
+	mutex := sync.Mutex{}
 	var frequency = make([]int, 26)
-	for i := 1000; i <= 1020; i++ {
+	for i := 1000; i <= 1220; i++ {
 		url := fmt.Sprintf("https://rfc-editor.org/rfc/rfc%d.txt", i)
 		fmt.Println("Get url ", i)
-		go countLetters(url, frequency)
+		go countLetters(url, frequency, &mutex)
 	}
-	for i, c := range allLetters {
-		fmt.Printf("%c-%d ", c, frequency[i])
+
+	for i := 0; i < 100; i++ {
+		time.Sleep(100 * time.Millisecond)
+		if mutex.TryLock() {
+			for i, c := range allLetters {
+				fmt.Printf("%c-%d ", c, frequency[i])
+			}
+			mutex.Unlock()
+		} else {
+			fmt.Println("Mutex already being used")
+		}
 	}
+
+	// mutex.Lock()
+	// for i, c := range allLetters {
+	// 	fmt.Printf("%c-%d ", c, frequency[i])
+	// }
+	// mutex.Unlock()
 	elapsed := time.Since(start)
 	fmt.Printf("\n\nElapsed time: %.3f seconds\n\n", elapsed.Seconds())
+
+	time.Sleep(10 * time.Second)
 
 }
