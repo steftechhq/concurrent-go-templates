@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-//Wait groups and barriers are two synchronization abstractions that work on groups of goroutines.
+// Wait groups and barriers are two synchronization abstractions that work on groups of goroutines.
 // We typically use wait groups to wait for a group of tasks to complete. On the other hand, we use barriers to synchronize many goroutines at a
 // common point.
 
